@@ -16,15 +16,35 @@ with open(local_data, 'r+') as _f:
     data = json.load(_f)
     assert 'library_dir' in data
 
+    LIB = {_k: data[_k] for _k in data if 'Path' in data[_k]}
+
     to_del = [
-        _k for _k in data if 'Path' in data[_k] and
+        _k for _k in LIB if
         not os.path.exists(os.path.join(data['library_dir'], data[_k]['Path']))
     ]
-    for _k in to_del:
-        del data[_k]
+    l0 = len(LIB)
+    l1 = len(to_del)
+    print(f"{l0} entries detected.")
+
+    if l1 > 0:
+        if l1 / l0 <= 0.05:
+            print(f"Deleted: {to_del}")
+            confirm = True
+        else:
+            confirm = input(f"Delete {len(to_del)} entries (Y/N)")
+            if "n" in confirm.lower():
+                confirm = False
+            else:
+                confirm = True
+
+        if confirm:
+            for _k in to_del:
+                del data[_k]
+
     _f.seek(0)
     json.dump(data, _f, indent=4, ensure_ascii=False)
     _f.truncate()
+    LIB = {_k: data[_k] for _k in data if 'Path' in data[_k]}
 
 if len(sys.argv) > 1 and '-n' not in sys.argv and '--number' not in sys.argv:
     sys.argv.insert(1, '-k')
@@ -78,13 +98,13 @@ def find_cover(_dir=os.getcwd(), exts=None):
 
 
 def get_rjcode_with(keywords):
-    rjcodes = [key for key in data.keys() if isinstance(data[key], dict)]
+    _res = LIB.keys()
     for keyword in keywords:
-        rjcodes = [
-            rjcode for rjcode in rjcodes for value in data[rjcode].values()
+        _res = [
+            rjcode for rjcode in _res for value in data[rjcode].values()
             if (keyword in value) or (keyword in rjcode)
         ]
-    return rjcodes
+    return _res
 
 
 def print_rjcode(_rjcode):
@@ -107,23 +127,17 @@ def print_rjcode(_rjcode):
 args = parse_cli()
 
 if not args.keywords:
-    rjcodes_to_play = [
-        random.choice(list(data.keys())) for _ in range(args.number)
-    ]
+    size = min(len(LIB), args.number)
+    rjcodes_to_play = random.sample(list(LIB.keys()), size)
 else:
-    rjcodes_to_play = [
-        random.choice(get_rjcode_with(args.keywords))
-        for _ in range(args.number)
-    ]
+    temp = get_rjcode_with(args.keywords)
+    print(f"{len(temp)} found:", temp)
+    size = min(len(temp), args.number)
+    rjcodes_to_play = random.sample(temp, size)
 
-for rjcode in rjcodes_to_play:
+for rjcode in set(rjcodes_to_play):
     print_rjcode(rjcode)
-    if rjcode not in data:
-        continue
-    # path = data[rjcode]['Path']
     path = os.path.join(data['library_dir'], data[rjcode]['Path'])
-    if not os.path.exists(path):
-        continue
     playlist = ' '.join(find_audio_files(path))
     mpv = f'mpv --loop-playlist=no --no-video {playlist}'
     subprocess.call(shlex.split(mpv))
