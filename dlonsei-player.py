@@ -131,10 +131,11 @@ if not args.keywords:
     rjcodes_to_play = random.sample(list(LIB.keys()), size)
 else:
     temp = get_rjcode_with(args.keywords)
-    print(f"{len(temp)} found:", temp)
+    print(f"Found {len(temp)}:", temp)
     size = min(len(temp), args.number)
     rjcodes_to_play = random.sample(temp, size)
 
+print(f"To play {size}:", rjcodes_to_play)
 for rjcode in set(rjcodes_to_play):
     print_rjcode(rjcode)
     path = os.path.join(data['library_dir'], data[rjcode]['Path'])
